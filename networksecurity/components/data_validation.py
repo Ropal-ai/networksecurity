@@ -40,6 +40,30 @@ class DataValidation:
         except Exception as e:
             raise NetworkSecurityException(e,sys)
         
+    def get_numerical_columns_from_schema(self) -> list:
+        try:
+            return self.schema_config.get("numerical_columns", [])
+        except Exception as e:
+            raise NetworkSecurityException(e,sys)
+        
+    def validate_numerical_columns_in_dataframe(self, dataframe: pd.DataFrame) -> bool:
+        try:
+            numerical_columns = self.get_numerical_columns_from_schema()
+            if not numerical_columns:
+                return True
+
+            present_numeric_columns = [col for col in numerical_columns if col in dataframe.columns]
+            missing_numeric_columns = list(set(numerical_columns) - set(present_numeric_columns))
+
+            logging.info(f"Numerical columns required: {len(numerical_columns)}")
+            logging.info(f"Numerical columns present: {len(present_numeric_columns)}")
+            if missing_numeric_columns:
+                logging.info(f"Missing numerical columns: {missing_numeric_columns}")
+
+            return len(present_numeric_columns) == len(numerical_columns)
+        except Exception as e:
+            raise NetworkSecurityException(e,sys)
+        
     def detect_dataset_drift(self,base_df,current_df,threshold = 0.05)->bool:
         try:
             status = True
@@ -87,6 +111,15 @@ class DataValidation:
             status = self.validate_number_columns(dataframe=test_dataframe)
             if not status:
                  error_message = f"Test dataframe all columns"
+
+            status = self.validate_numerical_columns_in_dataframe(dataframe=train_dataframe)
+            if not status:
+                 error_message = f"Train dataframe all columns"
+
+            status = self.validate_numerical_columns_in_dataframe(dataframe=test_dataframe)
+            if not status:
+                 error_message = f"Test dataframe all columns"
+
 
             ## Lets check datadrift
             status = self.detect_dataset_drift(base_df=train_dataframe,current_df=test_dataframe)
